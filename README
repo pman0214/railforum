@@ -23,12 +23,12 @@ Use rake to initialize DB file:
 = How to Use
 
 Run daily routines as follows:
-    $ rake get
-    $ rake subjects
-    $ rake contents | less
+    $ ./rail_crawl get
+    $ ./rail_crawl subjects
+    $ ./rail_crawl contents | less
 
 For the first time, enter your ID, password, and BBS:
-    $ rake get
+    $ ./rail_crawl get
     Please enter your id and password.
     ID: your_id_here
     Password: your_password_here
@@ -37,14 +37,17 @@ For the first time, enter your ID, password, and BBS:
 
 = More Specific Usage
 
+The following command prints unread contents on bbs #20:
+    $ ./rail_crawl contents 20
+
 The following command prints all stored contents on bbs #20:
-    $ rake "contents[20:all]"
+    $ ./rail_crawl contents 20:all
 
 The following command prints stored contents after #1000 on bbs #20:
-    $ rake "contents[20:1000]"
+    $ ./rail_crawl contents 20:1000
 
-You can also run on multiple BBS:
-    $ rake "contents[20:1000 39:all]"
+You can also run with multiple BBS:
+    $ ./rail_crawl contents 20:1000 39:all
 
 The above mentioned commands are also available for subjects:
-    $ rake "subjects[20:all]"
+    $ ./rail_crawl subjects 20:all

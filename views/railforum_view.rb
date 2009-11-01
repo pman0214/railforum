@@ -14,11 +14,11 @@ require 'railforum'
 
 module RailForum
   class RailForumView
-    @account = nil
-    @read_points = nil
+    @account    = nil
+    @read_point = nil
 
     #--------------------------------------------------
-    def initialize
+    def initialize(read)
       # 巡回する掲示板を取得
       @account = RailForum::Account.new(RailForum::Config[:RailForumHome] +
                                       "/" + RailForum::Config[:YamlFile])
@@ -26,22 +26,25 @@ module RailForum
         while !@account.create
         end
       end
+
+      @read_point = read
+      # 既読ポインタ指定がない場合は全掲示版を読む
+      if !@read_point || @read_point.length == 0
+        @read_point = {}
+        @account.bbs.each do |bbs_num|
+          @read_point[bbs_num] = -1
+        end
+      end
     end
 
     #--------------------------------------------------
-    def contents(read=nil)
-      parse_args(read)
-
-      # 各掲示板について
-      @account.bbs.each do |bbs_num|
-        # 既読ポインタ指定があって該当掲示板でない場合は
-        # スキップする
-        if @read_points && !@read_points[bbs_num]
+    def contents
+      @read_point.each do |read|
+        # 未読コンテンツの取得
+        bbs, contents = get_unread_contents(read[0])
+        if !bbs || !contents
           next
         end
-
-        # 未読コンテンツの取得
-        bbs, contents = get_unread_contents(bbs_num)
 
 
         print "\n######################################################################\n"
@@ -92,19 +95,13 @@ module RailForum
     end
 
     #--------------------------------------------------
-    def subjects(read=nil)
-      parse_args(read)
-
-      # 各掲示板について
-      @account.bbs.each do |bbs_num|
-        # 既読ポインタ指定があって該当掲示板でない場合は
-        # スキップする
-        if @read_points && !@read_points[bbs_num]
+    def subjects
+      @read_point.each do |read|
+        # 未読コンテンツの取得
+        bbs, contents = get_unread_contents(read[0])
+        if !bbs || !contents
           next
         end
-
-        # 未読コンテンツの取得
-        bbs, contents = get_unread_contents(bbs_num)
 
         print "\n######################################################################\n"
         print "     【#{bbs.bbs_number}】 #{bbs.subject}\n"
@@ -124,49 +121,23 @@ module RailForum
 
     #==================================================
     private
-    def parse_args(read=nil)
-      @read_points = nil
-      # 引数の処理
-      if read
-        # フォーマットチェック
-        #   20:100 38:200 39:all
-        if read.gsub(/^([0-9]+[:]*([0-9]+|all)*[\s]*)+$/, '') != ''
-          puts "Invalid bbs."
-          exit
-        end
-        @read_points = {}
-        # :allがあったら:1に置換、スペースで分割
-        # "20:100 38:200 39:1"
-        read.gsub(':all', ':1').split(/\s+/).each do |b|
-          # ["20:100", "38:200", "39:1"]
-          bbs_num, content_num = b.split(':')
-          # {20=>99, 38=>199, 39=>0}
-          @read_points[bbs_num.to_i] = content_num.to_i - 1
-        end
-      end
-    end
-
-    #==================================================
-    def get_unread_contents(bbs_num=0)
+    def get_unread_contents(bbs_num)
       # 掲示板番号でDBから情報取得
       bbs = RailForum::BBS.find(:first, :conditions => ["bbs_number=#{bbs_num}"])
-
-      # 既読ポインタの処理
-      #   読み出し番号の開始指定がある場合はそれを利用
-      #   そうでない場合はDB内の既読ポインタを利用
-      read_point = nil
-      if @read_points && @read_points[bbs.bbs_number]
-        read_point = @read_points[bbs.bbs_number]
+      if !bbs
+        print "\nIgnoring bbs##{bbs_num}.\n"
+        return nil
       end
-      # 指定がない場合はマイナスになっているのでDBの値を使用
-      if !read_point || read_point < 0
-        read_point = bbs.read_point.to_i
+
+      # 指定がない場合は既読ポインタがマイナスになっているのでDBの値を使用
+      if !@read_point || @read_point[bbs_num] < 0
+        @read_point[bbs_num] = bbs.read_point.to_i
       end
 
       # 既読番号より大きい番号のコンテンツのみ取得
       contents = RailForum::Content.find(:all,
-                                       :conditions => ["bbs_id=#{bbs.id} AND content_number>#{read_point}"],
-                                       :order => ["posted_at"])
+                                         :conditions => ["bbs_id=#{bbs.id} AND content_number>#{@read_point[bbs_num]}"],
+                                         :order => ["posted_at"])
 
       return [bbs, contents]
     end

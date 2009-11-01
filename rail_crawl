@@ -1,0 +1,135 @@
+#!/usr/bin/ruby
+# -*- coding: utf-8 -*-
+#
+# RailForum巡回プログラムフロントエンド
+#
+
+require 'railforum'
+
+
+module RailForum
+  class FrontEnd
+    # ヘルプ表示のコマンド表示幅（スペース含む長さ）
+    PRINT_COMMAND_LEN = 16
+    # コマンドとヘルプでのコマンドの説明
+    COMMANDS    = [
+      ["crawl",         "Regular crawling."],
+      ["get",           "Retrive new contents."],
+      ["subjects",      "Print unread contents' subject."],
+      ["contents",      "Print unread contents."],
+    ]
+
+    @argv       = nil
+
+    #--------------------------------------------------
+    def initialize(argv)
+      if !argv || argv.length < 1
+        print_usage
+        exit
+      end
+      @argv = argv
+
+      # DB接続の初期化
+      RailForum::Init.init
+    end
+
+    #--------------------------------------------------
+    def print_usage
+      puts "Usage:"
+      puts "\trailforum_crawler <command> [option1] [option2] ..."
+      puts ""
+      puts "command:"
+      COMMANDS.each do |cmd|
+        print "\t#{sprintf("%-*s", PRINT_COMMAND_LEN, cmd[0])}#{cmd[1]}\n"
+      end
+    end
+
+    #--------------------------------------------------
+    def exec
+      # コマンド名チェック
+      if !command_valid?(@argv[0])
+        print "Unknown command: #{@argv[0]}\n"
+        print_usage
+        exit
+      end
+
+      begin
+        # コマンド名のメソッドを実行
+        send "#{@argv[0]}"
+      rescue NoMethodError
+        # メソッド定義がない場合はエラー
+        print "Internal error 0001: #{@argv[0]}\n"
+        exit
+      end
+    end
+
+    # コマンド名のメソッドを定義する
+    #--------------------------------------------------
+    def crawl
+      # getしてcontentsを表示
+      get
+      contents
+    end
+
+    #--------------------------------------------------
+    def get
+      rail_get = RailForum::RailForumGet.new
+      rail_get.get
+    end
+
+    #--------------------------------------------------
+    def subjects
+      bbs = parse_bbsnum
+      rail_view = RailForum::RailForumView.new(bbs)
+      rail_view.subjects
+    end
+
+    #--------------------------------------------------
+    def contents
+      bbs = parse_bbsnum
+      rail_view = RailForum::RailForumView.new(bbs)
+      rail_view.contents
+    end
+
+
+    #==================================================
+    private
+    def command_valid?(command=@argv[0])
+      COMMANDS.each do |cmd|
+        if cmd[0] == command
+          return true
+        end
+      end
+      return false
+    end
+
+    #--------------------------------------------------
+    def parse_bbsnum
+      # 第1引数はコマンド名なので第2引数から読む
+      read = @argv.last(@argv.length-1)
+
+      read_points = {}
+      if read
+        read.each do |r|
+          # フォーマットチェック
+          #   20:all|20:100
+          if r.gsub(/^[0-9]+(:[0-9]+|:all)*$/, '') != ''
+            print "Invalid bbs: #{r}.\n"
+            print "Abort.\n"
+            exit
+          end
+          # :allは:1に置換して:で分割
+          bbs_num, content_num = r.gsub(':all', ':1').split(':')
+          # 1引いた値として格納
+          read_points[bbs_num.to_i] = content_num.to_i - 1
+        end
+      end
+      return read_points
+    end
+
+  end # end of class
+end # end of module
+
+
+front = RailForum::FrontEnd.new(ARGV)
+front.exec
