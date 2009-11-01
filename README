@@ -1,0 +1,50 @@
+= Scripts and libraries for "railforum.jp"
+
+This scripts crawl on railforum.jp, which are provided together with libraries.
+
+
+= DEPENDENCY
+
+These ruby libraries are required:
+    activerecord
+    highline
+    hpricot
+    sqlite3-ruby
+
+"rake" is also required to initialize and to run daily routines.
+
+
+= Getting Started
+
+Use rake to initialize DB file:
+    $ rake db_migrate
+
+
+= How to Use
+
+Run daily routines as follows:
+    $ rake get
+    $ rake subjects
+    $ rake contents | less
+
+For the first time, enter your ID, password, and BBS:
+    $ rake get
+    Please enter your id and password.
+    ID: your_id_here
+    Password: your_password_here
+    BBS (separate by ',' or ' '): 20 39 [bbs_number] ...
+
+
+= More Specific Usage
+
+The following command prints all stored contents on bbs #20:
+    $ rake "contents[20:all]"
+
+The following command prints stored contents after #1000 on bbs #20:
+    $ rake "contents[20:1000]"
+
+You can also run on multiple BBS:
+    $ rake "contents[20:1000 39:all]"
+
+The above mentioned commands are also available for subjects:
+    $ rake "subjects[20:all]"
